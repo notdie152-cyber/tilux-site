@@ -2,7 +2,7 @@
  * thì KHÔNG BAO GIỜ đặt ở đây — token chỉ nằm trong Script Properties của Apps Script.
  * Giá trị dạng YOUR_... = placeholder → pixel/endpoint tự tắt cho tới khi thay. */
 window.COD_CONFIG = {
-  ENDPOINT: 'https://script.google.com/macros/s/AKfycbwRVE-WqzCh2hkRim7AfY4R1R4hw9wfhWfiMK9_hD3FsE2pHEqhsQ0VpMAhmzvNTcaf/exec', // https://script.google.com/macros/s/.../exec
+  ENDPOINT: 'https://script.google.com/macros/s/AKfycbxhGBumAz8i4ZcqaOiXsgKeEG0VWFwUemvTE_7yTucbci4KH2IvmvaDW5EvguDFuNZ5/exec', // https://script.google.com/macros/s/.../exec
   META_PIXEL_ID: '4483197801948572,29525607110372842',
   TIKTOK_PIXEL_ID: 'YOUR_TIKTOK_PIXEL_CODE',
   PRODUCT: { id: 'KPCT-MEO-01', name: 'Kẹp phồng chân tóc mini không dây', currency: 'VND' },
