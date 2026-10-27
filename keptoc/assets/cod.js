@@ -73,7 +73,10 @@
     if (isSet(C.META_PIXEL_ID)) {
       !function (f, b, e, v, n, t, s) { if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments) }; if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = []; t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s) }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
       // Advanced matching: Meta tự hash các giá trị thô này trên trình duyệt
-      fbq('init', C.META_PIXEL_ID, Object.assign({ external_id: externalId(), country: 'vn' }, (meta && meta.fb) || {}));
+      // META_PIXEL_ID có thể là nhiều pixel cách nhau dấu phẩy → init từng pixel
+      String(C.META_PIXEL_ID).split(',').map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (pid) {
+        fbq('init', pid, Object.assign({ external_id: externalId(), country: 'vn' }, (meta && meta.fb) || {}));
+      });
       fbq('track', 'PageView');
     }
     if (isSet(C.TIKTOK_PIXEL_ID)) {
