@@ -125,7 +125,7 @@
   refreshTotal();
 
   var rules = {
-    name: function (v) { return v.trim().split(/\s+/).length >= 2 && v.trim().length >= 4 ? '' : 'Vui lòng nhập đầy đủ họ và tên'; },
+    name: function (v) { return v.trim().length >= 2 ? '' : 'Vui lòng nhập tên của bạn'; },
     phone: function (v) { return normPhone(v) ? '' : 'Số điện thoại chưa đúng (10 số, bắt đầu 03/05/07/08/09)'; },
     province: function (v) { return v ? '' : 'Vui lòng chọn Tỉnh/Thành phố'; },
     ward: function (v) { return v.trim().length >= 2 ? '' : 'Vui lòng nhập Phường/Xã'; },
