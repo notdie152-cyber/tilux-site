@@ -32,6 +32,8 @@
   }
 
   var qs = new URLSearchParams(location.search);
+  // fbp dự phòng (cod_fbp_fallback): nếu pixel bị chặn/chưa kịp tải thì tự tạo _fbp đúng định dạng Meta (fb.1.<ms>.<số ngẫu nhiên>)
+  if (isSet(C.META_PIXEL_ID) && !getCookie('_fbp')) setCookie('_fbp', 'fb.1.' + Date.now() + '.' + Math.floor(Math.random() * 1e10), 90);
   // fbc: fb.1.<ms lúc click>.<fbclid> — chỉ tạo mới khi fbclid đổi
   var fbclid = qs.get('fbclid');
   if (fbclid) {
@@ -96,6 +98,7 @@
   if (!document.documentElement.hasAttribute('data-thankyou')) {
     var idle = window.requestIdleCallback || function (f) { setTimeout(f, 1500); };
     window.addEventListener('load', function () { idle(function () { window.codLoadPixels(); }); });
+    setTimeout(function () { window.codLoadPixels(); }, 2500); // đảm bảo pixel chạy dù trang tải chậm
   }
 
   // ---------- Form đặt hàng ----------
