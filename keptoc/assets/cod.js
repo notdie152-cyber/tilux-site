@@ -13,6 +13,25 @@
   var LS = safeStore('localStorage'), SS = safeStore('sessionStorage');
   var isSet = function (v) { return v && String(v).indexOf('YOUR_') !== 0; };
 
+  // ---------- Chặn IP (tab ChanIP trong Google Sheet) ----------
+  // IP bị chặn → thay trang bằng màn "Trang đang bảo trì" (không hiện sản phẩm/giá), không tải pixel, không có form.
+  // Khách thường không bị chậm: kiểm tra chạy nền, hết giờ/lỗi mạng → cho xem bình thường (fail-open).
+  var BLK = 'cod_ipb';
+  function blockedCached() {
+    try { var v = JSON.parse(LS.getItem(BLK) || 'null'); return !!(v && v.b && Date.now() - v.t < 864e5); } catch (e) { return false; }
+  }
+  function showMaintenance() {
+    window.__codPixels = true; // chặn tải pixel
+    var go = function () {
+      document.title = 'Trang đang bảo trì';
+      document.body.innerHTML = '<main style="max-width:420px;margin:30vh auto 0;padding:0 24px;text-align:center;font:16px/1.6 system-ui,sans-serif;color:#444">' +
+        '<h1 style="font-size:22px;margin:0 0 8px">Trang đang bảo trì</h1><p>Vui lòng quay lại sau. Xin cảm ơn!</p></main>';
+    };
+    if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
+  }
+  var blocked = blockedCached();
+  if (blocked) showMaintenance();
+
   // ---------- Cookies & IDs ----------
   function getCookie(n) { var m = document.cookie.match('(?:^|; )' + n + '=([^;]*)'); return m ? decodeURIComponent(m[1]) : ''; }
   function setCookie(n, v, days) {
@@ -69,7 +88,7 @@
 
   // ---------- Pixels (tải sau khi trang hiển thị để không hại LCP) ----------
   window.codLoadPixels = function (meta) {
-    if (window.__codPixels) return; window.__codPixels = true;
+    if (window.__codPixels || blocked) return; window.__codPixels = true;
     if (isSet(C.META_PIXEL_ID)) {
       !function (f, b, e, v, n, t, s) { if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments) }; if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = []; t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s) }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
       // Advanced matching: Meta tự hash các giá trị thô này trên trình duyệt
@@ -104,9 +123,26 @@
     setTimeout(function () { window.codLoadPixels(); }, 2500); // đảm bảo pixel chạy dù trang tải chậm
   }
 
+  // Hỏi web app 1 lần/phiên: IP này có trong ChanIP không (chạy nền, timeout 4s, lỗi → cho xem)
+  if (!blocked && isSet(C.ENDPOINT) && C.IP_BLOCK_CHECK !== false && C.IP_LOOKUP && !SS.getItem('cod_ipc') &&
+      !document.documentElement.hasAttribute('data-thankyou')) {
+    getIp().then(function (ip) {
+      if (!ip) return;
+      var ctl = window.AbortController ? new AbortController() : null;
+      var t = setTimeout(function () { ctl && ctl.abort(); }, 4000);
+      return fetch(C.ENDPOINT + '?check=1&ip=' + encodeURIComponent(ip), { signal: ctl && ctl.signal })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          clearTimeout(t);
+          SS.setItem('cod_ipc', '1');
+          if (j && j.b === true) { blocked = true; LS.setItem(BLK, JSON.stringify({ b: 1, t: Date.now() })); showMaintenance(); }
+        });
+    }).catch(function () { });
+  }
+
   // ---------- Form đặt hàng ----------
   var form = document.getElementById('order-form');
-  if (!form) return;
+  if (!form || blocked) return;
 
   function normPhone(raw) {
     var d = String(raw || '').replace(/[^\d+]/g, '');
@@ -157,7 +193,8 @@
       product_id: C.PRODUCT.id, product_name: C.PRODUCT.name, package: p.label, quantity: p.qty,
       unit_price: Math.round(p.price / p.qty), value: total(), currency: 'VND',
       page_url: location.href, referrer: document.referrer, ua: navigator.userAgent,
-      fill_ms: startedAt ? Date.now() - startedAt : 0, consent: true /* đồng ý qua thông báo trên nút đặt hàng */, session_id: externalId()
+      fill_ms: startedAt ? Date.now() - startedAt : 0, consent: true /* đồng ý qua thông báo trên nút đặt hàng */, session_id: externalId(),
+      pixel_id: isSet(C.META_PIXEL_ID) ? C.META_PIXEL_ID : '' // để sheet cảnh báo khi dataset khác pixel
     };
     Object.keys(ids).forEach(function (k) { o[k] = ids[k]; });
     UTM.forEach(function (k) { o[k] = u[k] || ''; });
@@ -184,6 +221,7 @@
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    if (blocked) return;
     var ok = true;
     Object.keys(rules).forEach(function (n) { if (!check(form.elements[n])) ok = false; });
     if (!ok) { var bad = form.querySelector('[aria-invalid=true]'); if (bad) bad.focus(); return; }
@@ -210,7 +248,7 @@
       var o = j.o;
       SS.setItem('cod_last_order', JSON.stringify({
         order_id: o.order_id, event_id: o.event_id, value: o.value, qty: o.quantity, package: o.package,
-        name: o.name, phone: o.phone, province: o.province, ward: o.ward, consent: o.consent, demo: !!j.demo
+        name: o.name, phone: o.phone, province: o.province, ward: o.ward, consent: o.consent && !j.nb /* IP bị chặn → trang cảm ơn không bắn event */, demo: !!j.demo
       }));
       location.href = C.THANKYOU_URL + '?oid=' + encodeURIComponent(o.order_id);
     }).catch(function (err) {
